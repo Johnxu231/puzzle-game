@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>拼图游戏</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* 更改字体为更现代的无衬线字体 */
+            text-align: center;
+            background-color: #f0f4f8; /* 柔和的背景色 */
+            margin: 0;
+            padding: 5px; /* 增加整体内边距 */
+            box-sizing: border-box;
+            touch-action: none; /* 防止触控默认行为，如双击缩放 */
+            font-size: 17px; /* 基础字体大小，更适合手机阅读 */
+            color: #333; /* 深色字体 */
+        }
+
+        h1 {
+            color: #2c3e50; /* 标题颜色 */
+            margin-bottom: 25px; /* 增加标题下方间距 */
+            font-size: 2em; /* 调整标题大小 */
+        }
+
+        #controls {
+            margin: 40px auto; /* 调整上下边距 */
+            max-width: 95%; /* 稍微放宽最大宽度 */
+            padding: 5px;
+            background-color: #ffffff;
+            border-radius: 10px; /* 圆角边框 */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 添加阴影 */
+            display: flex;
+            flex-direction: row; /* 手机上控件垂直堆叠 */
+            gap: 5px; /* 控件之间的间距 */
+            align-items: center; /* 居中对齐子元素 */
+        }
+
+        #controls label {
+            display: flex; /* 标签独占一行 */
+            margin-bottom: 8px; /* 标签下方间距 */
+            font-weight: bold;
+            color: #555;
+            font-size: 1.1em;
+        }
+
+        #controls input[type="file"] {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 80%; /* 限制文件输入框宽度 */
+            box-sizing: border-box;
+        }
+
+        button {
+            margin: 1px 0; /* 调整按钮上下边距 */
+            padding: 14px 25px; /* 增大padding，便于触控 */
+            font-size: 19px; /* 增大字体 */
+            min-width: 140px; /* 最小宽度 */
+            touch-action: manipulation; /* 优化触控 */
+            border: none;
+            border-radius: 8px; /* 圆角按钮 */
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease; /* 添加过渡效果 */
+            background-color: #007bff; /* 默认蓝色按钮 */
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 90%; /* 手机上按钮更宽 */
+            max-width: 60px; /* 限制最大宽度 */
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #0056b3; /* 悬停效果 */
+            transform: translateY(-2px); /* 轻微上浮效果 */
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0); /* 按下效果 */
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .selected {
+            background-color: #28a745; /* 选中状态的绿色 */
+        }
+
+        .selected:hover:not(:disabled) {
+            background-color: #218838;
+        }
+
+        #game-area {
+            display: flex;
+            flex-direction: column; /* 手机上默认垂直堆叠，避免横向滚动 */
+            justify-content: center;
+            align-items: center; /* 居中对齐 */
+            margin: 5px auto;
+            max-width: 100%;
+        }
+
+        #game-container {
+            position: relative;
+            border: 2px solid #a0a0a0; /* 边框更明显 */
+            background-color: #e9ecef; /* 浅灰色背景 */
+            flex-shrink: 0; /* 防止缩小 */
+            width: 90vw; /* 使用视口宽度，更灵活 */
+            max-width: 400px; /* 限制最大宽度，避免过大 */
+            height: auto; /* 高度根据内容调整 */
+            aspect-ratio: 1 / 1; /* 保持正方形比例，重要 */
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.1); /* 内阴影效果 */
+            margin-bottom: 20px; /* 游戏区和碎片池之间的间距 */
+            overflow: hidden; /* 确保碎片不会溢出游戏容器 */
+        }
+
+        #piece-pool {
+            position: relative;
+            width: 90vw; /* 使用视口宽度 */
+            max-width: 400px; /* 限制最大宽度 */
+            min-height: 250px; /* 碎片池最小高度 */
+            border: 2px solid #a0a0a0;
+            background-color: #f8f8f8;
+            padding: 10px; /* 碎片池内边距 */
+            overflow: auto; /* 允许滚动 */
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            cursor: grab; /* 拖拽手势 */
+            border: 1px solid rgba(0, 0, 0, 0.2); /* 柔和的边框 */
+            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2); /* 碎片阴影 */
+            transition: transform 0.05s ease-out; /* 拖拽时的平滑过渡 */
+            touch-action: none; /* 防止浏览器默认手势 */
+        }
+
+        .puzzle-piece:active {
+            cursor: grabbing;
+        }
+
+        #preview {
+            margin: 20px auto;
+            max-width: 90%;
+            height: auto;
+            display: none;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .grid-line-horizontal, .grid-line-vertical {
+            position: absolute;
+            background-color: rgba(221, 221, 221, 0.7); /* 半透明网格线 */
+        }
+        .grid-line-horizontal {
+            width: 100%;
+            height: 1px;
+        }
+        .grid-line-vertical {
+            height: 100%;
+            width: 1px;
+        }
+
+        /* 优化横屏体验 */
+        @media (orientation: landscape) and (max-height: 700px) { /* 针对较矮的横屏设备 */
+            #game-area {
+                flex-direction: row; /* 横屏时左右布局 */
+                align-items: flex-start; /* 顶部对齐 */
+                justify-content: center; /* 居中对齐 */
+            }
+            #game-container {
+                width: 50vw; /* 游戏区占用一半视口宽度 */
+                max-width: 500px; /* 限制最大宽度 */
+                margin-bottom: 0;
+                margin-right: 20px; /* 游戏区和碎片池之间的间距 */
+            }
+            #piece-pool {
+                width: 30vw; /* 碎片池占用较小部分 */
+                max-width: 250px;
+                min-height: 400px; /* 横屏时碎片池更高 */
+                margin-top: 0;
+            }
+            #controls {
+                flex-direction: row; /* 横屏时控件可以横向排列 */
+                flex-wrap: wrap; /* 允许换行 */
+                justify-content: center;
+                gap: 5px;
+            }
+            button {
+                width: 20vw; /* 按钮宽度自适应 */
+                min-width: 30px;
+                margin: 5px;
+            }
+            #controls label {
+                margin-bottom: 0;
+            }
+        }
+
+        /* 更精细的媒体查询，针对Pixel 7的实际CSS像素宽度 */
+        @media (max-width: 414px) { /* 接近Pixel 7的412px宽度 */
+            body {
+                font-size: 10px; /* 进一步减小字体 */
+                padding: 10px;
+            }
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 10px;
+            }
+            button {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+            #controls {
+                padding: 5px;
+                gap: 10px;
+            }
+            #game-container, #piece-pool {
+                width: 20vw；/*95vw;  窄屏下占用更多宽度 */
+            }
+            #piece-pool {
+                min-height: 100px; /* 窄屏下碎片池可以再矮一点 */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        
+        <input type="file" id="image-upload" accept="image/*">
+        <div>
+            <button onclick="useDefaultImage()">默认图片</button>
+            <button id="start-button" onclick="startGame()" disabled>开始游戏</button>
+            <button id="end-button" style="display: none;" onclick="endGame()">结束游戏</button>
+        </div>
+        <div>
+            <button id="difficulty-2" onclick="selectDifficulty(2)">简单 (2x2)</button>
+            <button id="difficulty-3" onclick="selectDifficulty(3)">容易 (3x3)</button>
+            <button id="difficulty-4" onclick="selectDifficulty(4)">困难 (4x4)</button>
+        </div>
+
+    </div>
+    <div id="game-area">
+        <div id="game-container"></div>
+        <div id="piece-pool"></div>
+    </div>
+    <img id="preview" src="" alt="预览">
+
+    <script>
+        let originalImage = new Image();
+        let originalNaturalWidth = 0;
+        let originalNaturalHeight = 0;
+        let imageWidth = 0;
+        let imageHeight = 0;
+        let gridSize = 0;
+        let pieceWidth = 0;
+        let pieceHeight = 0;
+        let pieceSourceWidth = 0;
+        let pieceSourceHeight = 0;
+        let pieces = [];
+        let correctPositions = [];
+        let isDragging = false;
+        let currentPiece = null;
+        let offsetX = 0;
+        let offsetY = 0;
+        let imageSelected = false;
+        let difficultySelected = false;
+        let groups = [];
+
+        function useDefaultImage() {
+            originalImage.src = './images/example.jpg'; // 请确保这个路径正确
+            originalImage.onload = () => {
+                adjustImageSize();
+                document.getElementById('preview').src = originalImage.src;
+                document.getElementById('preview').style.display = 'block';
+                imageSelected = true;
+                updateStartButton();
+            };
+            originalImage.onerror = () => {
+                alert('无法加载默认图片，请检查路径。');
+                imageSelected = false;
+                updateStartButton();
+            };
+        }
+
+        document.getElementById('image-upload').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    originalImage.src = e.target.result;
+                    originalImage.onload = () => {
+                        adjustImageSize();
+                        document.getElementById('preview').src = originalImage.src;
+                        document.getElementById('preview').style.display = 'block';
+                        imageSelected = true;
+                        updateStartButton();
+                    };
+                    originalImage.onerror = () => {
+                        alert('无法加载图片文件。');
+                        imageSelected = false;
+                        updateStartButton();
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function adjustImageSize() {
+            originalNaturalWidth = originalImage.naturalWidth;
+            originalNaturalHeight = originalImage.naturalHeight;
+
+            // 根据游戏容器的实际可用宽度来调整图片大小
+            const gameContainer = document.getElementById('game-container');
+            // 获取 gameContainer 的 CSS 宽度（已通过CSS设定 max-width: 400px; width: 90vw;）
+            // 在 JS 中使用 clientWidth/Height 来获取实际渲染的尺寸
+            const containerWidth = gameContainer.clientWidth;
+            const containerHeight = gameContainer.clientHeight; // 这个在 flex 布局下可能需要计算
+
+            // 为了保持图片比例，并填充游戏容器，我们根据较短边来计算
+            // 假设我们希望游戏容器是正方形，或者至少宽高比固定
+            const desiredGameAreaSize = Math.min(containerWidth, window.innerHeight * 0.5); // 限制游戏区不超过屏幕高度的一半，或容器宽度
+
+            if (originalNaturalWidth === 0 || originalNaturalHeight === 0) {
+                console.warn("Original image dimensions are zero. Cannot adjust size.");
+                imageWidth = 0;
+                imageHeight = 0;
+                return;
+            }
+
+            // 计算图片在游戏区域内的实际显示尺寸
+            // 目标是让拼图区域的宽度和高度尽可能大，同时保持原图比例
+            let scaleFactor = 1;
+            // 优先宽度限制
+            if (originalNaturalWidth > desiredGameAreaSize) {
+                scaleFactor = desiredGameAreaSize / originalNaturalWidth;
+            }
+            imageWidth = originalNaturalWidth * scaleFactor;
+            imageHeight = originalNaturalHeight * scaleFactor;
+
+            // 再次检查高度是否超出，如果超出则重新计算
+            const maxGameContainerHeight = window.innerHeight * 0.5; // 例如，游戏区高度不超过屏幕高度的50%
+            if (imageHeight > maxGameContainerHeight) {
+                scaleFactor = maxGameContainerHeight / originalNaturalHeight;
+                imageWidth = originalNaturalWidth * scaleFactor;
+                imageHeight = originalNaturalHeight * scaleFactor;
+            }
+            
+            // 确保游戏容器的CSS尺寸与图片渲染尺寸匹配
+            gameContainer.style.width = `${imageWidth}px`;
+            gameContainer.style.height = `${imageHeight}px`;
+
+            // 更新预览图的大小
+            const preview = document.getElementById('preview');
+            preview.style.maxWidth = `${imageWidth}px`;
+            preview.style.maxHeight = `${imageHeight}px`;
+        }
+
+        function selectDifficulty(size) {
+            gridSize = size;
+            difficultySelected = true;
+            updateStartButton();
+            document.querySelectorAll('#controls button[id^="difficulty-"]').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.getElementById(`difficulty-${size}`).classList.add('selected');
+        }
+
+        function updateStartButton() {
+            const startButton = document.getElementById('start-button');
+            startButton.disabled = !(imageSelected && difficultySelected);
+            startButton.style.backgroundColor = (imageSelected && difficultySelected) ? '#28a745' : '#cccccc'; // 匹配选中按钮的绿色
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startGame() {
+            if (!imageSelected || !difficultySelected) {
+                alert('请先选择图片和难度！');
+                return;
+            }
+
+            // 确保 imageWidth 和 imageHeight 已经被 adjustImageSize 正确设置
+            // 重新计算确保基于当前容器尺寸
+            adjustImageSize();
+
+            pieceWidth = imageWidth / gridSize;
+            pieceHeight = imageHeight / gridSize;
+            pieceSourceWidth = originalNaturalWidth / gridSize;
+            pieceSourceHeight = originalNaturalHeight / gridSize;
+
+            const container = document.getElementById('game-container');
+            container.innerHTML = ''; // 清空旧碎片和网格线
+
+            // 添加背景分割线
+            for (let i = 1; i < gridSize; i++) {
+                const hLine = document.createElement('div');
+                hLine.className = 'grid-line-horizontal';
+                hLine.style.top = `${i * pieceHeight}px`;
+                container.appendChild(hLine);
+                const vLine = document.createElement('div');
+                vLine.className = 'grid-line-vertical';
+                vLine.style.left = `${i * pieceWidth}px`;
+                container.appendChild(vLine);
+            }
+
+            const pool = document.getElementById('piece-pool');
+            pool.innerHTML = '';
+            pieces = [];
+            correctPositions = [];
+            groups = [];
+
+            let tempPieces = [];
+
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = pieceWidth;
+                    canvas.height = pieceHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(originalImage,
+                        x * pieceSourceWidth, y * pieceSourceHeight,
+                        pieceSourceWidth, pieceSourceHeight,
+                        0, 0,
+                        pieceWidth, pieceHeight
+                    );
+
+                    canvas.className = 'puzzle-piece';
+                    // 随机放置在碎片池中，确保不超出边界
+                    canvas.style.left = `${Math.random() * (pool.clientWidth - pieceWidth)}px`;
+                    canvas.style.top = `${Math.random() * (pool.clientHeight - pieceHeight)}px`;
+                    
+                    canvas.dataset.correctX = x * pieceWidth;
+                    canvas.dataset.correctY = y * pieceHeight;
+                    canvas.dataset.gridX = x;
+                    canvas.dataset.gridY = y;
+                    canvas.dataset.groupId = null;
+
+                    canvas.addEventListener('mousedown', startDrag);
+                    canvas.addEventListener('touchstart', startDrag, {passive: false});
+
+                    tempPieces.push(canvas);
+                    pieces.push(canvas);
+                    correctPositions.push({x: x * pieceWidth, y: y * pieceHeight});
+                }
+            }
+
+            shuffleArray(tempPieces);
+            tempPieces.forEach(piece => {
+                pool.appendChild(piece);
+            });
+
+            document.getElementById('end-button').style.display = 'inline-block'; // 使用 inline-block
+            document.getElementById('start-button').style.display = 'none'; // 隐藏开始按钮
+
+            // 移除旧的事件监听器，避免重复添加
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('touchend', stopDrag);
+
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchmove', drag, {passive: false});
+            document.addEventListener('touchend', stopDrag, {passive: false});
+        }
+
+        function startDrag(event) {
+            event.preventDefault();
+            isDragging = true;
+            currentPiece = event.target;
+            const touch = event.touches ? event.touches[0] : event;
+            
+            // 获取当前碎片相对于其父容器的偏移量
+            const currentPieceRect = currentPiece.getBoundingClientRect();
+            const parentRect = currentPiece.parentElement.getBoundingClientRect();
+
+            offsetX = touch.clientX - currentPieceRect.left;
+            offsetY = touch.clientY - currentPieceRect.top;
+            
+            // 将碎片提升到最顶层
+            currentPiece.style.zIndex = 1000;
+
+            const groupId = currentPiece.dataset.groupId;
+            if (groupId !== 'null') { // dataset值是字符串
+                const group = groups.find(g => g.id === parseInt(groupId));
+                if (group) {
+                    group.pieces.forEach(piece => {
+                        piece.style.zIndex = 1000;
+                    });
+                }
+            }
+        }
+
+        function drag(event) {
+            if (isDragging) {
+                event.preventDefault();
+                const touch = event.touches ? event.touches[0] : event;
+                
+                const gameContainer = document.getElementById('game-container');
+                const pool = document.getElementById('piece-pool');
+                const gameRect = gameContainer.getBoundingClientRect();
+                const poolRect = pool.getBoundingClientRect();
+
+                let newLeft, newTop;
+                let targetParent = null;
+
+                // 判断拖拽位置在哪一个容器内
+                if (touch.clientX >= gameRect.left && touch.clientX <= gameRect.right &&
+                    touch.clientY >= gameRect.top && touch.clientY <= gameRect.bottom) {
+                    targetParent = gameContainer;
+                } else if (touch.clientX >= poolRect.left && touch.clientX <= poolRect.right &&
+                           touch.clientY >= poolRect.top && touch.clientY <= poolRect.bottom) {
+                    targetParent = pool;
+                }
+
+                if (targetParent && currentPiece.parentElement !== targetParent) {
+                    const currentPieceGroupId = currentPiece.dataset.groupId;
+                    if (currentPieceGroupId !== 'null') {
+                        const currentGroup = groups.find(g => g.id === parseInt(currentPieceGroupId));
+                        if (currentGroup) {
+                            // 移动整个组
+                            currentGroup.pieces.forEach(piece => {
+                                const pieceCurrentRect = piece.getBoundingClientRect();
+                                const oldParentRect = piece.parentElement.getBoundingClientRect();
+                                
+                                newLeft = pieceCurrentRect.left - targetParent.getBoundingClientRect().left;
+                                newTop = pieceCurrentRect.top - targetParent.getBoundingClientRect().top;
+                                
+                                targetParent.appendChild(piece);
+                                piece.style.left = `${newLeft}px`;
+                                piece.style.top = `${newTop}px`;
+                                piece.dataset.prevLeft = newLeft;
+                                piece.dataset.prevTop = newTop;
+                            });
+                            // 更新 currentPiece 的位置
+                            newLeft = touch.clientX - offsetX - targetParent.getBoundingClientRect().left;
+                            newTop = touch.clientY - offsetY - targetParent.getBoundingClientRect().top;
+
+                        }
+                    } else {
+                        // 移动单个碎片
+                        const currentPieceRect = currentPiece.getBoundingClientRect();
+                        newLeft = currentPieceRect.left - targetParent.getBoundingClientRect().left;
+                        newTop = currentPieceRect.top - targetParent.getBoundingClientRect().top;
+                        
+                        targetParent.appendChild(currentPiece);
+                        currentPiece.style.left = `${newLeft}px`;
+                        currentPiece.style.top = `${newTop}px`;
+                        currentPiece.dataset.prevLeft = newLeft;
+                        currentPiece.dataset.prevTop = newTop;
+                        
+                        // 重新计算 offsetX 和 offsetY，因为父容器变了
+                        offsetX = touch.clientX - currentPiece.getBoundingClientRect().left;
+                        offsetY = touch.clientY - currentPiece.getBoundingClientRect().top;
+
+                        newLeft = touch.clientX - offsetX - targetParent.getBoundingClientRect().left;
+                        newTop = touch.clientY - offsetY - targetParent.getBoundingClientRect().top;
+                    }
+                } else if (targetParent === currentPiece.parentElement) {
+                    // 在同一容器内移动
+                    newLeft = touch.clientX - offsetX - targetParent.getBoundingClientRect().left;
+                    newTop = touch.clientY - offsetY - targetParent.getBoundingClientRect().top;
+                } else {
+                    // 未在有效容器内，不更新位置
+                    return;
+                }
+                
+                // 限制拖拽范围在父容器内
+                newLeft = Math.max(0, Math.min(newLeft, targetParent.clientWidth - currentPiece.clientWidth));
+                newTop = Math.max(0, Math.min(newTop, targetParent.clientHeight - currentPiece.clientHeight));
+
+                const groupId = currentPiece.dataset.groupId;
+                if (groupId !== 'null') {
+                    const group = groups.find(g => g.id === parseInt(groupId));
+                    if (group) {
+                        const deltaX = newLeft - parseFloat(currentPiece.dataset.prevLeft || currentPiece.offsetLeft);
+                        const deltaY = newTop - parseFloat(currentPiece.dataset.prevTop || currentPiece.offsetTop);
+                        
+                        group.pieces.forEach(piece => {
+                            if (piece !== currentPiece) {
+                                const pieceLeft = parseFloat(piece.style.left || piece.offsetLeft) + deltaX;
+                                const pieceTop = parseFloat(piece.style.top || piece.offsetTop) + deltaY;
+                                piece.style.left = `${pieceLeft}px`;
+                                piece.style.top = `${pieceTop}px`;
+                            }
+                        });
+                    }
+                }
+                currentPiece.style.left = `${newLeft}px`;
+                currentPiece.style.top = `${newTop}px`;
+
+                currentPiece.dataset.prevLeft = newLeft;
+                currentPiece.dataset.prevTop = newTop;
+            }
+        }
+
+        function stopDrag(event) {
+            if (isDragging) {
+                isDragging = false;
+                
+                const groupId = currentPiece.dataset.groupId;
+                if (groupId !== 'null') {
+                    const group = groups.find(g => g.id === parseInt(groupId));
+                    if (group) {
+                        group.pieces.forEach(piece => {
+                            piece.style.zIndex = 1; // 恢复z-index
+                        });
+                    }
+                } else {
+                    currentPiece.style.zIndex = 1; // 恢复单个碎片的z-index
+                }
+                
+
+                if (currentPiece.parentElement.id === 'game-container') {
+                    snapToGrid();
+                    snapToAdjacentPieces();
+                }
+                checkWin();
+                currentPiece = null; // 清除当前拖拽的碎片
+            }
+        }
+        
+        // 改进的 snapToGrid，考虑碎片组
+        function snapToGrid() {
+            const currentPieceCorrectX = parseFloat(currentPiece.dataset.correctX);
+            const currentPieceCorrectY = parseFloat(currentPiece.dataset.correctY);
+
+            const currentPieceX = parseFloat(currentPiece.style.left);
+            const currentPieceY = parseFloat(currentPiece.style.top);
+
+            const tolerance = pieceWidth * 0.2; // 容错范围，可以基于碎片大小调整
+
+            // 只有当当前碎片没有groupId时才执行单独的吸附到网格，或者它是一个组的“主”碎片
+            // 这里简化为：如果它是一个组，则整个组一起检查
+            let targetGroup = null;
+            if (currentPiece.dataset.groupId !== 'null') {
+                targetGroup = groups.find(g => g.id === parseInt(currentPiece.dataset.groupId));
+            } else {
+                targetGroup = { pieces: [currentPiece] };
+            }
+
+            if (!targetGroup) return;
+
+            let allPiecesInGroupPlaced = true;
+            targetGroup.pieces.forEach(piece => {
+                const pieceCorrectX = parseFloat(piece.dataset.correctX);
+                const pieceCorrectY = parseFloat(piece.dataset.correctY);
+                const pieceCurrentX = parseFloat(piece.style.left);
+                const pieceCurrentY = parseFloat(piece.style.top);
+
+                if (Math.abs(pieceCurrentX - pieceCorrectX) < tolerance && Math.abs(pieceCurrentY - pieceCorrectY) < tolerance) {
+                    piece.style.left = `${pieceCorrectX}px`;
+                    piece.style.top = `${pieceCorrectY}px`;
+                    piece.dataset.placed = 'true';
+                } else {
+                    piece.dataset.placed = 'false';
+                    allPiecesInGroupPlaced = false;
+                }
+            });
+            // 如果一个组的所有碎片都正确放置，则可以认为该组已完成
+            // (虽然这里的逻辑是每个碎片单独检查，但如果都到位，就是正确)
+        }
+
+
+        function snapToAdjacentPieces() {
+            const tolerance = 25; // 增加吸附容错范围，方便触控
+
+            const activePieces = currentPiece.dataset.groupId !== 'null' ? 
+                                 groups.find(g => g.id === parseInt(currentPiece.dataset.groupId)).pieces : 
+                                 [currentPiece];
+
+            // 遍历所有 activePieces 中的碎片
+            activePieces.forEach(activePiece => {
+                const activePieceGridX = parseInt(activePiece.dataset.gridX);
+                const activePieceGridY = parseInt(activePiece.dataset.gridY);
+                const activePieceLeft = parseFloat(activePiece.style.left);
+                const activePieceTop = parseFloat(activePiece.style.top);
+
+                // 遍历所有在 game-container 且不是 activePiece 自身或其组内的碎片
+                pieces.forEach(otherPiece => {
+                    if (otherPiece === activePiece || otherPiece.parentElement.id !== 'game-container' || 
+                        (activePiece.dataset.groupId !== 'null' && otherPiece.dataset.groupId === activePiece.dataset.groupId)) {
+                        return;
+                    }
+
+                    const otherGridX = parseInt(otherPiece.dataset.gridX);
+                    const otherGridY = parseInt(otherPiece.dataset.gridY);
+                    const otherLeft = parseFloat(otherPiece.style.left);
+                    const otherTop = parseFloat(otherPiece.style.top);
+
+                    let shouldSnap = false;
+                    let targetLeft = activePieceLeft;
+                    let targetTop = activePieceTop;
+
+                    // 检查右侧吸附
+                    if (activePieceGridX === otherGridX + 1 && activePieceGridY === otherGridY &&
+                        Math.abs(activePieceLeft - (otherLeft + pieceWidth)) < tolerance && Math.abs(activePieceTop - otherTop) < tolerance) {
+                        targetLeft = otherLeft + pieceWidth;
+                        targetTop = otherTop;
+                        shouldSnap = true;
+                    } 
+                    // 检查左侧吸附
+                    else if (activePieceGridX === otherGridX - 1 && activePieceGridY === otherGridY &&
+                            Math.abs(activePieceLeft + pieceWidth - otherLeft) < tolerance && Math.abs(activePieceTop - otherTop) < tolerance) {
+                        targetLeft = otherLeft - pieceWidth;
+                        targetTop = otherTop;
+                        shouldSnap = true;
+                    }
+                    // 检查底部吸附
+                    else if (activePieceGridY === otherGridY + 1 && activePieceGridX === otherGridX &&
+                            Math.abs(activePieceTop - (otherTop + pieceHeight)) < tolerance && Math.abs(activePieceLeft - otherLeft) < tolerance) {
+                        targetLeft = otherLeft;
+                        targetTop = otherTop + pieceHeight;
+                        shouldSnap = true;
+                    } 
+                    // 检查顶部吸附
+                    else if (activePieceGridY === otherGridY - 1 && activePieceGridX === otherGridX &&
+                            Math.abs(activePieceTop + pieceHeight - otherTop) < tolerance && Math.abs(activePieceLeft - otherLeft) < tolerance) {
+                        targetLeft = otherLeft;
+                        targetTop = otherTop - pieceHeight;
+                        shouldSnap = true;
+                    }
+
+                    if (shouldSnap) {
+                        // 计算拖拽的碎片相对于其正确位置的偏移
+                        const originalDeltaX = targetLeft - activePieceLeft;
+                        const originalDeltaY = targetTop - activePieceTop;
+
+                        // 将整个组一起移动
+                        if (activePiece.dataset.groupId !== 'null') {
+                            const groupToMove = groups.find(g => g.id === parseInt(activePiece.dataset.groupId));
+                            if (groupToMove) {
+                                groupToMove.pieces.forEach(p => {
+                                    const pLeft = parseFloat(p.style.left) + originalDeltaX;
+                                    const pTop = parseFloat(p.style.top) + originalDeltaY;
+                                    p.style.left = `${pLeft}px`;
+                                    p.style.top = `${pTop}px`;
+                                });
+                            }
+                        } else {
+                            activePiece.style.left = `${targetLeft}px`;
+                            activePiece.style.top = `${targetTop}px`;
+                        }
+                        mergeGroups(activePiece, otherPiece);
+                        // 合并组后，再次运行 snapToGrid，确保新合并的组在正确位置
+                        snapToGrid();
+                        return; // 一旦找到一个吸附点并合并，就退出当前otherPiece的循环，避免重复吸附
+                    }
+                });
+            });
+        }
+
+
+        function mergeGroups(piece1, piece2) {
+            let group1Id = piece1.dataset.groupId;
+            let group2Id = piece2.dataset.groupId;
+
+            if (group1Id === 'null' && group2Id === 'null') {
+                const newGroupId = groups.length > 0 ? Math.max(...groups.map(g => g.id)) + 1 : 0; // 确保ID唯一
+                const newGroup = { id: newGroupId, pieces: [piece1, piece2] };
+                groups.push(newGroup);
+                piece1.dataset.groupId = newGroupId;
+                piece2.dataset.groupId = newGroupId;
+            } else if (group1Id === 'null') {
+                const group2 = groups.find(g => g.id === parseInt(group2Id));
+                group2.pieces.push(piece1);
+                piece1.dataset.groupId = group2Id;
+            } else if (group2Id === 'null') {
+                const group1 = groups.find(g => g.id === parseInt(group1Id));
+                group1.pieces.push(piece2);
+                piece2.dataset.groupId = group1Id;
+            } else if (group1Id !== group2Id) {
+                const group1 = groups.find(g => g.id === parseInt(group1Id));
+                const group2 = groups.find(g => g.id === parseInt(group2Id));
+                
+                // 将group2的碎片全部移到group1
+                group1.pieces = group1.pieces.concat(group2.pieces);
+                group2.pieces.forEach(p => p.dataset.groupId = group1Id); // 更新所有碎片的groupId
+                
+                // 移除group2
+                groups = groups.filter(g => g.id !== parseInt(group2Id));
+            }
+        }
+
+        /* function checkWin() {
+            // 检查所有碎片是否都在 game-container 且都放置在正确位置
+            const allPlaced = pieces.every(piece => 
+                piece.parentElement.id === 'game-container' && 
+                parseFloat(piece.style.left) === parseFloat(piece.dataset.correctX) &&
+                parseFloat(piece.style.top) === parseFloat(piece.dataset.correctY)
+            );
+
+            if (allPlaced) {
+                alert('恭喜！拼图完成！');
+                endGame();
+            }
+        } */
+
+        function checkWin() {
+            const winTolerance = 2;
+            let allPiecesCorrectlyPlaced = true;
+
+            pieces.forEach((piece, index) => {
+                const currentLeft = parseFloat(piece.style.left);
+                const currentTop = parseFloat(piece.style.top);
+                const correctX = parseFloat(piece.dataset.correctX);
+                const correctY = parseFloat(piece.dataset.correctY);
+                const inGameContainer = piece.parentElement.id === 'game-container';
+
+                const isPositionCorrect = Math.abs(currentLeft - correctX) < winTolerance &&
+                                        Math.abs(currentTop - correctY) < winTolerance;
+
+                /* console.log(`Piece ${index}:
+                    In Container: ${inGameContainer},
+                    Current Pos: (${currentLeft.toFixed(2)}, ${currentTop.toFixed(2)}),
+                    Correct Pos: (${correctX.toFixed(2)}, ${correctY.toFixed(2)}),
+                    Position Correct (within tolerance): ${isPositionCorrect}
+                `); */
+
+                if (!(inGameContainer && isPositionCorrect)) {
+                    allPiecesCorrectlyPlaced = false;
+                }
+            });
+
+            // console.log("Overall allPlaced:", allPiecesCorrectlyPlaced);
+
+            if (allPiecesCorrectlyPlaced) {
+                alert('恭喜！拼图完成！');
+                endGame();
+            }
+        }
+
+        function endGame() {
+            const container = document.getElementById('game-container');
+            const pool = document.getElementById('piece-pool');
+            container.innerHTML = '';
+            pool.innerHTML = '';
+            
+            // 恢复游戏容器的初始样式（以便重新开始游戏时能正确布局）
+            container.style.width = ''; // 清除内联样式，让CSS规则生效
+            container.style.height = ''; 
+            document.getElementById('end-button').style.display = 'none';
+            document.getElementById('start-button').style.display = 'inline-block'; // 显示开始按钮
+
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('touchend', stopDrag);
+            pieces = [];
+            correctPositions = [];
+            groups = [];
+            
+            // 保持图片和难度选择状态
+            // imageSelected = false; 
+            // difficultySelected = false;
+            updateStartButton();
+            document.querySelectorAll('#controls button[id^="difficulty-"]').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.getElementById('preview').style.display = 'none'; // 隐藏预览图
+        }
+
+        // 初始化时调用一次 updateStartButton
+        updateStartButton();
+
+        // 当窗口大小改变时，重新调整图片尺寸
+        window.addEventListener('resize', () => {
+            if (imageSelected && gridSize > 0 && pieces.length === 0) { // 只在未开始游戏且已选图时调整预览图
+                adjustImageSize();
+            } else if (pieces.length > 0) { // 如果游戏已经开始，碎片已经生成，则不重新调整图片大小，但可以考虑调整容器布局
+                // 游戏进行中，调整容器大小但保持碎片位置相对不变
+                const gameContainer = document.getElementById('game-container');
+                const pool = document.getElementById('piece-pool');
+
+                // 可以重新应用 CSS 的 width: 90vw; max-width: 400px; 等规则
+                // 但拼图碎片的尺寸和位置是基于startGame时计算的imageWidth/Height
+                // 如果需要完全响应式，则需要重新生成碎片，这在游戏进行中通常不希望发生
+                // 所以这里只确保容器尺寸大致正确，碎片会保持它们当前的定位
+                adjustImageSize(); // 确保 game-container 的尺寸更新
+            }
+        });
+    </script>
+</body>
+</html>
